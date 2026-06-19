@@ -23,6 +23,46 @@ docker compose up --build
 
 3. Open the API docs at: `http://localhost:8000/docs`
 
+## Local development (without Docker)
+
+1. Create and activate a Python virtual environment:
+
+```bash
+python -m venv .venv
+# Windows (PowerShell)
+.\.venv\Scripts\Activate.ps1
+# Windows (cmd)
+.\.venv\Scripts\activate.bat
+# macOS / Linux
+source .venv/bin/activate
+```
+
+2. Install dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+3. Copy `.env.example` to `.env` and set required values (at minimum `GEMINI_API_KEY`, `DATABASE_URL`, and `REDIS_URL`).
+
+4. Start PostgreSQL and Redis. Easiest option is to use Docker Compose from the repository root:
+
+```bash
+docker compose up -d db redis
+```
+
+5. Start the API (reload enabled for development):
+
+```bash
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+6. Start a Celery worker in a separate terminal:
+
+```bash
+celery -A app.core.celery_app.celery_app worker --loglevel=info
+```
+
 ## Important env vars
 
 - `GEMINI_API_KEY` — (optional) API key for Gemini/Google GenAI
@@ -42,6 +82,62 @@ curl -X POST "http://localhost:8000/jobs/upload" -H "accept: application/json" -
 - `GET /jobs/{job_id}/status` — returns job lifecycle status and error message if failed.
 - `GET /jobs/{job_id}/results` — returns transactions, anomalies and summary (only when status is `completed`).
 - `GET /jobs` — list recent jobs.
+
+## Example curl requests
+
+- Upload a CSV file (creates a new job):
+
+```bash
+curl -X POST "http://localhost:8000/jobs/upload" \
+	-H "accept: application/json" \
+	-F "file=@data/transactions.csv;type=text/csv"
+```
+
+- Check job status:
+
+```bash
+curl -s "http://localhost:8000/jobs/1/status" | jq
+```
+
+- Download job results (only when status is `completed`):
+
+```bash
+curl -s "http://localhost:8000/jobs/1/results" | jq
+```
+
+- List recent jobs (optionally filter by status):
+
+```bash
+curl "http://localhost:8000/jobs?status=completed" | jq
+```
+
+Additional example curl requests:
+
+- Upload a CSV (returns `job_id`):
+
+```bash
+curl -X POST "http://localhost:8000/jobs/upload" \
+	-H "accept: application/json" \
+	-F "file=@data/transactions.csv;type=text/csv"
+```
+
+- Check job status (replace `1` with your `job_id`):
+
+```bash
+curl -s "http://localhost:8000/jobs/1/status" | jq '.'
+```
+
+- Fetch results once job is `completed`:
+
+```bash
+curl -s "http://localhost:8000/jobs/1/results" | jq '.'
+```
+
+- List jobs, optionally filter by status:
+
+```bash
+curl "http://localhost:8000/jobs?status=completed"
+```
 
 ## Verify & debug
 
